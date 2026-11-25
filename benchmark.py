@@ -39,7 +39,7 @@ def wait_for_http(client, url, timeout, process=None):
         if process is not None and process.poll() is not None:
             raise RuntimeError(f"Colibri завершился с кодом {process.returncode}.")
         try:
-            response = client.get(url, timeout=1)
+            response = client.get(url, timeout=httpx.Timeout(5, connect=0.5))
             if response.status_code == 200:
                 return response
         except httpx.TransportError:
@@ -152,13 +152,12 @@ def run_suite(client, tracer, prompts, output, context_length, max_tokens):
                 with tracer.start_as_current_span("colibri.startup") as startup_span:
                     started = time.perf_counter()
                     process = engine.enter_context(colibri(context_length))
-                    wait_for_http(
-                        client, f"{COLIBRI_URL}/health",
+                    models = wait_for_http(
+                        client, f"{COLIBRI_URL}/v1/models",
                         float(os.environ.get("STARTUP_TIMEOUT", "300")), process,
-                    )
+                    ).json()
                     startup_seconds = time.perf_counter() - started
                     startup_span.set_attribute("benchmark.startup_seconds", startup_seconds)
-                models = client.get(f"{COLIBRI_URL}/v1/models").raise_for_status().json()
                 model = models["data"][0]["id"]
                 suite.set_attribute("llm.model_name", model)
 

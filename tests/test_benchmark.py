@@ -21,10 +21,10 @@ class BenchmarkTest(unittest.TestCase):
     def test_suite_uses_one_engine_and_records_three_independent_requests(self):
         prompts = ["Первый", "Второй", "Третий"]
         requests = []
+        paths = []
 
         def handle(request):
-            if request.url.path == "/health":
-                return httpx.Response(200)
+            paths.append(request.url.path)
             if request.url.path == "/v1/models":
                 return httpx.Response(200, json={"data": [{"id": "test-model"}]})
             requests.append(json.loads(request.content))
@@ -49,6 +49,7 @@ class BenchmarkTest(unittest.TestCase):
                 rows = list(csv.DictReader(csv_file))
 
         process.assert_called_once_with(4096)
+        self.assertEqual(paths, ["/v1/models", *(["/v1/chat/completions"] * 3)])
         self.assertEqual([request["messages"] for request in requests], [
             [{"role": "user", "content": prompt}] for prompt in prompts
         ])
