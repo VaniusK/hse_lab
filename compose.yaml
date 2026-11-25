@@ -1,0 +1,35 @@
+services:
+  phoenix:
+    image: arizephoenix/phoenix:version-22.0.1
+    environment:
+      PHOENIX_WORKING_DIR: /data
+      PHOENIX_ENABLE_AUTH: "false"
+    ports:
+      - "127.0.0.1:${PHOENIX_PORT:-6006}:6006"
+    volumes:
+      - phoenix-data:/data
+
+  benchmark:
+    build: .
+    platform: linux/amd64
+    init: true
+    depends_on:
+      - phoenix
+    environment:
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://phoenix:6006/v1/traces
+      BENCHMARK_CONTEXT_LENGTH: ${BENCHMARK_CONTEXT_LENGTH:-4096}
+      MAX_OUTPUT_TOKENS: ${MAX_OUTPUT_TOKENS:-48}
+      STARTUP_TIMEOUT: ${STARTUP_TIMEOUT:-300}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-300}
+    volumes:
+      - type: bind
+        source: ${MODEL_DIR:-./model}
+        target: /model
+        read_only: true
+        bind:
+          create_host_path: false
+      - ./prompts:/prompts:ro
+      - ./output:/output
+
+volumes:
+  phoenix-data:
